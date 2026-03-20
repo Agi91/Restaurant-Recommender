@@ -83,22 +83,40 @@ def load_all_resources():
 vectorizer, tfidf_matrix, cosine_sim, data = load_all_resources()
 
 # -----------------------------
-# Recommendation functions (UNCHANGED)
+# Recommendation functions (UNCHANGED except fix)
 # -----------------------------
 indices = data.reset_index().set_index("Restaurant Name")["index"]
 
 def recommend_restaurants(name, top_n=10):
 
     if name not in indices:
-        return f"'{name}' not found in dataset."
+        return pd.DataFrame(columns=[
+            "Restaurant Name","City","Locality","Cuisines",
+            "Price_bucket","Aggregate rating","Votes"
+        ])
 
     idx = indices[name]
 
-    sim_scores = cosine_sim[idx].argsort()[::-1][1:top_n+1]
+    sim_scores = list(enumerate(cosine_sim[idx].flatten()))
+    sim_scores = sorted(sim_scores, key=lambda x: x[1], reverse=True)
+    sim_scores = sim_scores[1:top_n+1]
 
-    return data.loc[sim_scores,
+    restaurant_indices = [i[0] for i in sim_scores]
+
+   
+    valid_indices = [i for i in restaurant_indices if i < len(data)]
+
+    if len(valid_indices) == 0:
+        return pd.DataFrame(columns=[
+            "Restaurant Name","City","Locality","Cuisines",
+            "Price_bucket","Aggregate rating","Votes"
+        ])
+
+    return data.iloc[valid_indices][
         ["Restaurant Name","City","Locality","Cuisines","Price_bucket","Aggregate rating","Votes"]
     ]
+
+
 
 
 def recommend_by_preferences_ranked(cuisine=None, city=None, price=None, online=False, table=False, top_n=10):
@@ -135,7 +153,8 @@ def recommend_by_preferences_ranked(cuisine=None, city=None, price=None, online=
 
     top_indices = final_score.argsort()[::-1][:top_n]
 
-    result = data.loc[top_indices,
+    # ✅ FIXED PART (iloc correct usage)
+    result = data.iloc[top_indices][
         ["Restaurant Name","City","Locality","Cuisines","Price_bucket","Aggregate rating","Votes"]
     ].copy()
 
